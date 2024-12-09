@@ -41,18 +41,19 @@
 | 3、订阅节点优选IP | ip1到ip13，共13个 |CF官方IP、CF反代IP、CF优选域名| CF官方不同地区的visa域名|可选|
 | 4、优选IP对应端口 | pt1到pt13，共13个 |CF13个标准端口、反代IP对应任意端口| CF13个标准端口|可选|
 
-#### 特别注意：
+#### 订阅节点变量特别注意：
 
-1、重点：首次pages部署好后，其域名可能要等1分钟才能生效打开
+0、由于现在只能用混淆代码，无法在文件上直接修改了
 
-2、重点：pages的变量更改好后，必须点击右上角创建部署选项，重新上传一次原始混淆pages文件来使新变量生效
-![photo_2024-12-02_15-17-19](https://github.com/user-attachments/assets/31a659ef-8e2c-46be-b806-d16ae7ccc69f)
+1、当你非要用订阅类的客户端，且要改优选IP时，才需要设置ip1到ip13，pt1到pt13的变量
 
-3、ip1到ip7，pt1到pt7，在订阅分享链接中，仅支持80系端口关TLS节点
+2、ip1到ip7，pt1到pt7，在订阅分享链接中，仅支持80系端口关TLS节点
 
-4、ip8到ip13，pt8到pt13，在订阅分享链接中，仅支持443系端口开TLS节点
+3、ip8到ip13，pt8到pt13，在订阅分享链接中，仅支持443系端口开TLS节点
 
-5、单节点可随意DIY修改并无限克隆节点，具体见相关[手搓节点的视频教程](https://youtu.be/WwAeLyEz6jY)
+4、设置官方IP(ip1-ip13)，无需设置端口(pt1-pt13)；设置反代IP需要分开关TLS，端口变量也必须设置
+
+5、订阅节点变量设置可参考此[视频教程](https://youtu.be/8s-ELRuFaeE?si=MjhcKbt20d2Q2eqp&t=447)
 
 ---------------------------------
 ## 三：自定义proxyip
@@ -86,9 +87,11 @@
 
 ### 1、Serv00专用：
 
-修改自Serv00|ct8老王sing-box安装脚本，支持一键三协议：vless-reality、hysteria2、tuic。
+修改自Serv00|ct8老王sing-box安装脚本，支持一键三协议：vless-reality、vmess-ws(argo)、hysteria2。
 
 主要增加reality协议默认支持 CF vless/trojan 节点的proxyip以及非标端口的优选反代IP功能，脚本默认输出结果
+
+Serv00专用一键脚本：
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/Cloudflare_vless_trojan/main/serv00_proxyip.sh)
 ```
@@ -261,6 +264,6 @@ curl -sSL https://gitlab.com/rwkgyg/CFwarp/raw/main/point/cfip.sh -o cfip.sh && 
 ### 感谢你右上角的star🌟
 [![Stargazers over time](https://starchart.cc/yonggekkk/Cloudflare-workers-pages-vless.svg)](https://starchart.cc/yonggekkk/Cloudflare-workers-pages-vless)
 ------------------------------------------------------------------------
-### 代码来源：[ca110us](https://github.com/ca110us/epeius)、[emn178](https://github.com/emn178/js-sha256/blob/master/src/sha256.js)、[3Kmfi6HP](https://github.com/3Kmfi6HP/EDtunnel)、[badafans](https://github.com/badafans/Cloudflare-IP-SpeedTest)、[XIU2](https://github.com/XIU2/CloudflareSpeedTest)
+### 代码来源：[ca110us](https://github.com/ca110us/epeius)、[emn178](https://github.com/emn178/js-sha256/blob/master/src/sha256.js)、[3Kmfi6HP](https://github.com/3Kmfi6HP/EDtunnel)、[badafans](https://github.com/badafans/Cloudflare-IP-SpeedTest)、[XIU2](https://github.com/XIU2/CloudflareSpeedTest)、[老王eooce](https://github.com/eooce/Sing-box/blob/test/sb_00.sh)、[frankiejun](https://github.com/frankiejun/serv00-play/blob/main/start.sh)
 
 ### 声明：所有代码来源于Github社区，并通过ChatGPT进行整合
