@@ -14,9 +14,6 @@ reading() { read -p "$(red "$1")" "$2"; }
 
 USERNAME=$(whoami)
 HOSTNAME=$(hostname)
-export NEZHA_SERVER=${NEZHA_SERVER:-''} 
-export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
-export NEZHA_KEY=${NEZHA_KEY:-''}
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
 [ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
@@ -37,15 +34,20 @@ green "你选择的IP为: $IP"
 read_uuid() {
         reading "请输入统一的uuid密码 (建议回车默认随机): " UUID
         if [[ -z "$UUID" ]]; then
-	         UUID=$(uuidgen -r)
+	   UUID=$(uuidgen -r)
         fi
 	green "你的uuid为: $UUID"
 }
 
 read_reym() {
-        reading "请输入reality域名 (回车默认CF域名，支持proxyip+非标端口反代ip功能): " reym
+        yellow "方式一：回车使用CF域名，支持proxyip+非标端口反代ip功能 (推荐)"
+	yellow "方式二：输入 s 表示使用Serv00自带域名，不支持proxyip功能 (推荐)"
+        yellow "方式三：也可以自定义域名，注意要符合reality域名规则"
+        reading "请输入reality域名 【请选择 回车 或者 s 或者 输入域名】: " reym
         if [[ -z "$reym" ]]; then
-	         reym=www.speedtest.net
+           reym=www.speedtest.net
+	elif [[ "$reym" == "s" || "$reym" == "S" ]]; then
+           reym=$USERNAME.serv00.net
         fi
 	green "你的reality域名为: $reym"
 }
@@ -76,32 +78,14 @@ read_hy2_port() {
 
 read_vmess_port() {
     while true; do
-        reading "请输入vmess+ws端口 (面板开放的tcp端口): " vmess_port
+        reading "请输入vmess-ws端口 (面板开放的tcp端口): " vmess_port
         if [[ "$vmess_port" =~ ^[0-9]+$ ]] && [ "$vmess_port" -ge 1 ] && [ "$vmess_port" -le 65535 ]; then
-            green "你的tuic端口为: $tuic_port"
+            green "你的vmess端口为: $vmess_port"
             break
         else
             yellow "输入错误，请重新输入面板开放的tcp端口"
         fi
     done
-}
-
-read_nz_variables() {
-  if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
-      green "使用自定义变量哪吒运行哪吒探针"
-      return
-  else
-      reading "是否需要安装哪吒探针？【y/n】: " nz_choice
-      [[ -z $nz_choice ]] && return
-      [[ "$nz_choice" != "y" && "$nz_choice" != "Y" ]] && return
-      reading "请输入哪吒探针域名或ip：" NEZHA_SERVER
-      green "你的哪吒域名为: $NEZHA_SERVER"
-      reading "请输入哪吒探针端口（回车跳过默认使用5555）：" NEZHA_PORT
-      [[ -z $NEZHA_PORT ]] && NEZHA_PORT="5555"
-      green "你的哪吒端口为: $NEZHA_PORT"
-      reading "请输入哪吒探针密钥：" NEZHA_KEY
-      green "你的哪吒密钥为: $NEZHA_KEY"
-  fi
 }
 
 install_singbox() {
@@ -111,7 +95,6 @@ fi
 yellow "请确保在Serv00网页设置中已开放3个端口：2个tcp端口、1个udp端口"
 sleep 2
         cd $WORKDIR
-        #read_nz_variables
 	echo
 	read_ip
 	echo
@@ -125,6 +108,7 @@ sleep 2
         echo
         read_hy2_port
 	echo
+        sleep 2
         argo_configure
         echo
         download_and_run_singbox
@@ -157,9 +141,10 @@ reading "\n清理所有进程将退出ssh连接，确定继续清理吗？【y/n
 # Generating argo Config
 argo_configure() {
   while true; do
-    yellow "Argo临时隧道 (无需域名，推荐)"
-    yellow "Argo固定隧道 (需要域名，需要CF设置提取Token)"
-    reading "输入 g 表示使用Argo固定隧道 ；回车跳过 表示使用Argo临时隧道 【g/回车】: " argo_choice
+    yellow "方式一：Argo临时隧道 (无需域名，推荐)"
+    yellow "方式二：Argo固定隧道 (需要域名，需要CF设置提取Token)"
+    echo -e "${red}注意：${purple}Argo固定隧道使用Token时，需要在cloudflare后台设置隧道端口，该端口必须与vmess-ws的tcp端口一致)${re}"
+    reading "输入 g 表示使用Argo固定隧道，回车跳过表示使用Argo临时隧道 【请选择 g 或者 回车】: " argo_choice
     if [[ "$argo_choice" != "g" && "$argo_choice" != "G" && -n "$argo_choice" ]]; then
         red "无效的选择，请输入 g 或回车"
         continue
@@ -167,9 +152,8 @@ argo_configure() {
     if [[ "$argo_choice" == "g" || "$argo_choice" == "G" ]]; then
         reading "请输入argo固定隧道域名: " ARGO_DOMAIN
         green "你的argo固定隧道域名为: $ARGO_DOMAIN"
-        reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
+        reading "请输入argo固定隧道密钥（Json或Token。当你粘贴Token时，必须以ey开头）: " ARGO_AUTH
         green "你的argo固定隧道密钥为: $ARGO_AUTH"
-        echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和vmess+ws的tcp端口一致${re}"
     else
         green "使用Argo临时隧道"
     fi
@@ -193,14 +177,13 @@ EOF
   fi
 }
 
-
 # Download Dependency Files
 download_and_run_singbox() {
   ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
   if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
+      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot")
   elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/server bot" "https://github.com/eooce/test/releases/download/freebsd/npm npm")
+      FILE_INFO=("https://github.com/yonggekkk/Cloudflare_vless_trojan/releases/download/serv00/sb web" "https://github.com/yonggekkk/Cloudflare_vless_trojan/releases/download/serv00/server bot")
   else
       echo "Unsupported architecture: $ARCH"
       exit 1
@@ -461,23 +444,6 @@ openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=
 }
 EOF
 
-if [ -e "$(basename ${FILE_MAP[npm]})" ]; then
-    tlsPorts=("443" "8443" "2096" "2087" "2083" "2053")
-    if [[ "${tlsPorts[*]}" =~ "${NEZHA_PORT}" ]]; then
-      NEZHA_TLS="--tls"
-    else
-      NEZHA_TLS=""
-    fi
-    if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
-        export TMPDIR=$(pwd)
-        nohup ./"$(basename ${FILE_MAP[npm]})" -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
-        sleep 2
-        pgrep -x "$(basename ${FILE_MAP[npm]})" > /dev/null && green "$(basename ${FILE_MAP[npm]}) is running" || { red "$(basename ${FILE_MAP[npm]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[npm]})" && nohup ./"$(basename ${FILE_MAP[npm]})" -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[npm]}) restarted"; }
-    else
-        purple ""
-    fi
-fi
-
 if [ -e "$(basename ${FILE_MAP[web]})" ]; then
     nohup ./"$(basename ${FILE_MAP[web]})" run -c config.json >/dev/null 2>&1 &
     sleep 2
@@ -497,7 +463,7 @@ if [ -e "$(basename ${FILE_MAP[bot]})" ]; then
     pgrep -x "$(basename ${FILE_MAP[bot]})" > /dev/null && green "$(basename ${FILE_MAP[bot]}) is running" || { red "$(basename ${FILE_MAP[bot]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[bot]})" && nohup ./"$(basename ${FILE_MAP[bot]})" "${args}" >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[bot]}) restarted"; }
 fi
 sleep 3
-rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})"
+rm -f "$(basename ${FILE_MAP[web]})"
 }
 
 get_argodomain() {
@@ -522,26 +488,29 @@ get_argodomain() {
 get_links(){
 argodomain=$(get_argodomain)
 echo -e "\e[1;32mArgo域名:\e[1;35m${argodomain}\e[0m\n"
+if [ -z ${argodomain} ]; then
+red "Argo域名生成失败，当前Argo节点不可用"
+yellow "可尝试卸载重置安装，或者只用CDN回源设置现实CDN优选IP"
+fi
 ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"
 rm -rf jh.txt
 vl_link="vless://$UUID@$IP:$vless_port?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$reym&fp=chrome&pbk=$public_key&type=tcp&headerType=none#$NAME-reality"
 echo "$vl_link" >> jh.txt
-vmws_link="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-ws\", \"add\": \"$IP\", \"port\": \"$vmess_port\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"\", \"path\": \"/$UUID-vm?ed=2048\", \"tls\": \"\", \"sni\": \"\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)"
+vmws_link="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-ws\", \"add\": \"$IP\", \"port\": \"$vmess_port\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"auto\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"\", \"path\": \"/$UUID-vm?ed=2048\", \"tls\": \"\", \"sni\": \"\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)"
 echo "$vmws_link" >> jh.txt
-vmatls_link="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-ws-tls-argo\", \"add\": \"icook.hk\", \"port\": \"8443\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/$UUID-vm?ed=2048\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)"
+vmatls_link="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-ws-tls-argo\", \"add\": \"icook.hk\", \"port\": \"8443\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"auto\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/$UUID-vm?ed=2048\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)"
 echo "$vmatls_link" >> jh.txt
-vma_link="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-ws-argo\", \"add\": \"icook.hk\", \"port\": \"8880\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/$UUID-vm?ed=2048\", \"tls\": \"\"}" | base64 -w0)"
+vma_link="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-ws-argo\", \"add\": \"icook.hk\", \"port\": \"8880\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"auto\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/$UUID-vm?ed=2048\", \"tls\": \"\"}" | base64 -w0)"
 echo "$vma_link" >> jh.txt
 hy2_link="hysteria2://$UUID@$IP:$hy2_port?sni=www.bing.com&alpn=h3&insecure=1#$NAME-hy2"
 echo "$hy2_link" >> jh.txt
 url=$(cat jh.txt 2>/dev/null)
 baseurl=$(echo -e "$url" | base64 -w 0)
-yellow "注意：v2rayN或其他软件的跳过证书验证需设置为true，否则hy2或tuic节点可能不通\n"
+echo
 sleep 2
 cat > list.txt <<EOF
-
 =================================================================================================
 
 一、Vless-reality分享链接如下：
@@ -553,26 +522,30 @@ $vl_link
 方式一全局应用：设置变量名：proxyip    设置变量值：$IP:$vless_port  
 方式二单节点应用：path路径改为：/pyip=$IP:$vless_port
 CF节点的TLS可开可关
-用于CF节点落地到CF网站的地区为$IP所在地区
+CF节点落地到CF网站的地区为：$IP所在地区
 
 2、非标端口反代IP信息如下：
 客户端优选IP地址为：$IP，端口：$vless_port
 CF节点的TLS必须开启
-用于CF节点落地到非CF网站的地区为$IP所在地区
+CF节点落地到非CF网站的地区为：$IP所在地区
 
-注：如果serv00的IP被墙，proxyip依旧有效，但用于客户端的优选IP将不可用！
-注：必定有大佬会扫Serv00的反代IP作为其共享IP库或者出售，请慎重将reality域名设置为CF域名
+注：如果serv00的IP被墙，proxyip依旧有效，但用于客户端地址与端口的非标端口反代IP将不可用
+注：可能有大佬会扫Serv00的反代IP作为其共享IP库或者出售，请慎重将reality域名设置为CF域名
 -------------------------------------------------------------------------------------------------
 
 
-二、Vmess-ws分享链接三形态如下：
-1、Vmess-ws分享链接如下：
+二、Vmess-ws分享链接三形态如下 (如Argo域名生成失败，2 与 3 的Argo节点将不可用)：
+
+1、Vmess-ws主节点分享链接如下：
+(该节点默认不支持CDN，如果设置为CDN回源(需域名)：客户端地址可自行修改优选IP/域名，7个80系端口随便换，被墙依旧能用！)
 $vmws_link
 
-2、Vmess-ws-tls_Argo分享链接如下 (客户端地址可自行修改优选IP，6个443系端口随便更换)：
+2、Vmess-ws-tls_Argo分享链接如下： 
+(该节点为CDN优选IP节点，客户端地址可自行修改优选IP/域名，6个443系端口随便换，被墙依旧能用！)
 $vmatls_link
 
-3、Vmess-ws_Argo分享链接如下 (客户端地址可自行修改优选IP，7个80系端口随便更换)：
+3、Vmess-ws_Argo分享链接如下：
+(该节点为CDN优选IP节点，客户端地址可自行修改优选IP/域名，7个80系端口随便换，被墙依旧能用！)
 $vma_link
 -------------------------------------------------------------------------------------------------
 
@@ -587,7 +560,7 @@ $baseurl
 -------------------------------------------------------------------------------------------------
 
 
-五、查看sing-box与clash-meta配置文件，请进入主菜单选择4
+五、查看sing-box与clash-meta的订阅配置文件，请进入主菜单选择4
 -------------------------------------------------------------------------------------------------
 
 =================================================================================================
@@ -1079,14 +1052,14 @@ fi
 
 showsbclash(){
 if [[ -e $WORKDIR/sing_box.json ]]; then
-green "Sing_box配置文件如下："
-yellow "Argo节点的地址可自行修改优选IP"
+green "Sing_box配置文件如下，可上传到订阅类客户端上使用："
+yellow "其中Argo节点为CDN优选IP节点，server地址可自行修改优选IP/域名，被墙依旧能用！"
 sleep 2
 cat $WORKDIR/sing_box.json 
 echo
 echo
-green "Clash_meta配置文件如下："
-yellow "Argo节点的地址可自行修改优选IP"
+green "Clash_meta配置文件如下，可上传到订阅类客户端上使用："
+yellow "其中Argo节点为CDN优选IP节点，server地址可自行修改优选IP/域名，被墙依旧能用！"
 sleep 2
 cat $WORKDIR/clash_meta.yaml
 echo
@@ -1098,27 +1071,28 @@ fi
 #主菜单
 menu() {
    clear
-   echo "======================================================"
+   echo "========================================================="
    purple "修改自Serv00|ct8老王sing-box安装脚本"
-   purple "一键三协议共存：vless-reality、Vmess-ws(Argo)、hysteria2"
-   purple "转载请著名处自老王，请勿滥用"
+   purple "转载请著名出自老王，请勿滥用"
    green "甬哥Github项目  ：github.com/yonggekkk"
    green "甬哥Blogger博客 ：ygkkk.blogspot.com"
    green "甬哥YouTube频道 ：www.youtube.com/@ygkkk"
-   echo "======================================================"
-   echo
+   green "一键三协议共存：vless-reality、Vmess-ws(Argo)、hysteria2"
+   green "脚本使用视频教程：https://youtu.be/2VF9D6z2z7w"
+   green "当前脚本版本：V24.12.18 "
+   echo "========================================================="
    green  "1. 安装sing-box"
-   echo   "----------------------------------"
+   echo   "---------------------------------------------------------"
    red    "2. 卸载sing-box"
-   echo   "----------------------------------"
+   echo   "---------------------------------------------------------"
    green  "3. 查看节点及proxyip/非标端口反代ip"
-   echo   "----------------------------------"
+   echo   "---------------------------------------------------------"
    green  "4. 查看sing-box与clash-meta配置文件"
-   echo   "----------------------------------"
-   yellow "5. 清理所有进程"
-   echo   "----------------------------------"
+   echo   "---------------------------------------------------------"
+   yellow "5. 重置并清理所有服务进程(系统初始化)"
+   echo   "---------------------------------------------------------"
    red    "0. 退出脚本"
-   echo   "----------------------------------"
+   echo   "========================================================="
 nb=$(echo "$HOSTNAME" | cut -d '.' -f 1 | tr -d 's')
 ym=("cache$nb.serv00.com" "$HOSTNAME" "web$nb.serv00.com")
 rm -rf $WORKDIR/ip.txt
@@ -1136,20 +1110,23 @@ echo "$response" | while IFS='|' read -r ip status; do
 if [[ $status == "Accessible" ]]; then
 echo "$ip: 可用"  >> $WORKDIR/ip.txt
 else
-echo "$ip: 被墙"  >> $WORKDIR/ip.txt
+echo "$ip: 被墙 (Argo与CDN回源节点、proxyip依旧有效)"  >> $WORKDIR/ip.txt
 fi	
 done
 fi
 done
+snb=$(hostname | awk -F '.' '{print $1}')
+green "当前Serv00服务器名称：$snb"
 green "当前可选择的IP如下："
 cat $WORKDIR/ip.txt
 echo
 if [[ -e $WORKDIR/list.txt ]]; then
-green "已安装sing-box" 
+green "已安装sing-box"
+ps aux | grep '[c]onfig' > /dev/null && green "进程运行正常" || red "进程丢失，请卸载后重装脚本"
 else
 red "未安装sing-box，请选择 1 进行安装" 
 fi
-   echo   "----------------------------------"
+   echo   "========================================================="
    reading "请输入选择【0-5】: " choice
    echo ""
     case "${choice}" in
